@@ -21,6 +21,7 @@ class NewsCommentListPage extends StatefulWidget {
 class _NewsCommentListPageState extends State<NewsCommentListPage> {
   String _title = "";
   List _dataList = [];
+  bool _isLoadData = false;
 
   @override
   void initState() {
@@ -29,24 +30,32 @@ class _NewsCommentListPageState extends State<NewsCommentListPage> {
   }
 
   getNewsListData() async {
+    _isLoadData = true;
     Future.wait([
       Network.getNewsCommentList(widget.newsId),
       Network.getNewsCommentList(widget.newsId, true),
     ]).then((resList) {
+      _isLoadData = false;
       List dataList = [];
       Map longMap = resList.first;
       Map shortMap = resList.last;
       List longList = NewsCommentModel.modelsFromJsonList(longMap["comments"]);
       List shortList =
           NewsCommentModel.modelsFromJsonList(shortMap["comments"]);
-      dataList.add("${longList.length}条长评论");
-      dataList.addAll(longList);
-      dataList.add("${shortList.length}条短评论");
-      dataList.addAll(shortList);
-      setState(() {
-        _dataList = dataList;
-        _title = "${longList.length + shortList.length}条评论";
-      });
+      if (longList.length > 0) {
+        dataList.add("${longList.length}条长评论");
+        dataList.addAll(longList);
+      }
+      if (shortList.length > 0) {
+        dataList.add("${shortList.length}条短评论");
+        dataList.addAll(shortList);
+      }
+      if (dataList.length > 0) {
+        setState(() {
+          _dataList = dataList;
+          _title = "${longList.length + shortList.length}条评论";
+        });
+      }
     });
   }
 
@@ -67,12 +76,36 @@ class _NewsCommentListPageState extends State<NewsCommentListPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_title),
-        elevation: 2.0,
-      ),
-      body: ListView.builder(
+    Widget body;
+    if (_dataList.length == 0 && _isLoadData) {
+      body = Center(
+        child: Text(
+          "正在加载...",
+          style: TextStyle(
+            fontSize: 15.0,
+            color: Colors.grey,
+          ),
+        ),
+      );
+    } else if (_dataList.length == 0) {
+      body = Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Image.asset("images/message.png"),
+            Padding(padding: EdgeInsets.only(top: 10)),
+            Text(
+              "暂无评论",
+              style: TextStyle(
+                fontSize: 15.0,
+                color: Colors.grey,
+              ),
+            )
+          ],
+        ),
+      );
+    } else {
+      body = ListView.builder(
         itemBuilder: (ctx, index) {
           var model = _dataList[index];
           if (model is String) {
@@ -86,7 +119,14 @@ class _NewsCommentListPageState extends State<NewsCommentListPage> {
           );
         },
         itemCount: _dataList.length,
+      );
+    }
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_title),
+        elevation: 2.0,
       ),
+      body: body,
     );
   }
 }
